@@ -18,8 +18,6 @@ defmodule Rsmp.Application do
       RsmpWeb.Endpoint,
       # Start a worker by calling: Rsmp.Worker.start_link(arg)
       # {Rsmp.Worker, arg}
-      # Start our RSMP supervisor
-      RsmpSupervisor
     ]
 
     # See https://hexdocs.pm/elixir/Supervisor.html

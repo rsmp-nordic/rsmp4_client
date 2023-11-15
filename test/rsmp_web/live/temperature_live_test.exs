@@ -1,4 +1,4 @@
-defmodule RsmpWeb.SupervisorLiveTest do
+defmodule RsmpWeb.ClientLiveTest do
   use RsmpWeb.ConnCase
 
   import Phoenix.LiveViewTest

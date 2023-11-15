@@ -62,8 +62,14 @@ import_config "#{config_env()}.exs"
 
 config :rsmp, :emqtt,
   host: ~c"127.0.0.1",
-  clientid: "supervisor_742c",
+  port: 1883,
+  clientid: "tlc_c302",
+  clean_start: false,
+  name: :emqtt,
   proto_ver: :v5
+
+config :rsmp, :interval, 1000
+config :logger, level: :info
 
 config :rsmp, :sensor_id, "tlc_582a"
 
