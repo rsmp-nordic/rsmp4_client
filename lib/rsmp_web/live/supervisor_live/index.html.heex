@@ -1,0 +1,7 @@
+<h1>Clients</h1>
+<div id="clients" phx-update="append">
+  <%= for {client,state} <- @clients do %>
+    <p id="{client}" class={"state_#{state}"}><%= client %></p>
+  <% end %>
+</div>
+
