@@ -1,9 +1,7 @@
-# Rsmp
+# RSMP 4 Client
 This is part of an experiment to see how RSMP 4 could be build on top of MQTT.
 
-
 This Phoenix web app acts as an RSMP client.
-
 
 ## Running
 The MQTT broker and the MQTT device (rsmp_mqtt) should be running (or you can start them afterwards)-
