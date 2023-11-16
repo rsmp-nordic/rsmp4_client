@@ -14,17 +14,18 @@ defmodule RsmpClient do
 
   def init([]) do
     interval = Application.get_env(:rsmp, :interval)
-    emqtt_opts = Application.get_env(:rsmp, :emqtt)
-    id = emqtt_opts[:clientid]
+    emqtt_opts = Application.get_env(:rsmp, :emqtt) |> Enum.into(%{})
+    id = "tlc_#{SecureRandom.hex(4)}"
 
-    options =
-      emqtt_opts ++
-        [
-          will_topic: "state/#{id}",
-          will_payload: :erlang.term_to_binary(0),
-          will_retain: true
-        ]
+    options = Map.merge(emqtt_opts, %{
+      name: String.to_atom(id),
+      clientid: id,
+      will_topic: "state/#{id}",
+      will_payload: :erlang.term_to_binary(0),
+      will_retain: true
+    })
 
+    IO.puts "staring emqtt"
     {:ok, pid} = :emqtt.start_link(options)
 
     state = %{
@@ -39,10 +40,8 @@ defmodule RsmpClient do
     {:ok, set_timer(state), {:continue, :start_emqtt}}
   end
 
-  def handle_continue(:start_emqtt, %{pid: pid} = state) do
+  def handle_continue(:start_emqtt, %{pid: pid, id: clientid} = state) do
     {:ok, _} = :emqtt.connect(pid)
-    emqtt_opts = Application.get_env(:rsmp, :emqtt)
-    clientid = emqtt_opts[:clientid]
 
     # subscribe to commands
     {:ok, _, _} = :emqtt.subscribe(pid, {"command/#{clientid}/plan", 1})
@@ -130,27 +129,34 @@ defmodule RsmpClient do
   end
 
   # api
+  def get_id(pid) do
+    GenServer.call(pid, :get_id)
+  end
   # from iex:
   # > Process.whereis(RSMP) |> RSMP.set_status("main","system",1,234)
   def set_status(pid, component, module, code, value) do
-    GenServer.call(pid, {:set_status, component, module, code, value})
+    GenServer.cast(pid, {:set_status, component, module, code, value})
   end
 
   def send_all_status(pid) do
-    GenServer.call(pid, {:send_all_status})
+    GenServer.cast(pid, {:send_all_status})
   end
 
   # server
-  def handle_call({:set_status, component, module, code, value}, _from, state) do
+  def handle_call(:get_id, _from, state) do
+    {:reply, state[:id], state}
+  end
+  
+  def handle_cast({:set_status, component, module, code, value}, _from, state) do
     path = "#{component}/#{module}/#{code}"
     state = %{state | status: Map.put(state.status, path, value)}
     publish_status(state, component, module, code)
-    {:reply, :ok, state}
+    {:reply, state}
   end
 
-  def handle_call({:send_all_status}, _from, state) do
+  def handle_cast({:send_all_status}, _from, state) do
     publish_all_status(state)
-    {:reply, :ok, state}
+    {:reply, state}
   end
 
   # internal

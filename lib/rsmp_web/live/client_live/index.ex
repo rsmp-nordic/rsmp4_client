@@ -4,9 +4,16 @@ defmodule RsmpWeb.ClientLive.Index do
   require Logger
 
   @impl true
-  def mount(_params, _session, socket) do
+  def mount(params, session, socket) do
+    case connected?(socket) do
+      true -> connected_mount(params, session, socket)
+      false -> {:ok, assign(socket, page: "loading", id: "")}
+    end
+  end
+
+  def connected_mount(_params, _session, socket) do
     {:ok,pid} = RsmpClient.start_link([])
-    {:ok,socket}
+    {:ok, assign(socket, rsmp_client_id: pid, id: RsmpClient.get_id(pid))}
   end
 
   @impl true
@@ -17,7 +24,7 @@ defmodule RsmpWeb.ClientLive.Index do
   @impl true
   def handle_event("set_status", %{"state" => status_str}, socket) do
     case Integer.parse(status_str) do
-      {status, ""} ->
+      {_status, ""} ->
         {:noreply, socket}
 
       _ ->
