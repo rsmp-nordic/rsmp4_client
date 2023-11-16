@@ -15,7 +15,7 @@ defmodule Rsmp.Application do
       # Start Finch
       {Finch, name: Rsmp.Finch},
       # Start the Endpoint (http/https)
-      RsmpWeb.Endpoint,
+      RsmpWeb.Endpoint
       # Start a worker by calling: Rsmp.Worker.start_link(arg)
       # {Rsmp.Worker, arg}
     ]

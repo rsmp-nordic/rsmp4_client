@@ -17,15 +17,16 @@ defmodule RsmpClient do
     emqtt_opts = Application.get_env(:rsmp, :emqtt) |> Enum.into(%{})
     id = "tlc_#{SecureRandom.hex(4)}"
 
-    options = Map.merge(emqtt_opts, %{
-      name: String.to_atom(id),
-      clientid: id,
-      will_topic: "state/#{id}",
-      will_payload: :erlang.term_to_binary(0),
-      will_retain: true
-    })
+    options =
+      Map.merge(emqtt_opts, %{
+        name: String.to_atom(id),
+        clientid: id,
+        will_topic: "state/#{id}",
+        will_payload: :erlang.term_to_binary(0),
+        will_retain: true
+      })
 
-    IO.puts "staring emqtt"
+    IO.puts("staring emqtt")
     {:ok, pid} = :emqtt.start_link(options)
 
     state = %{
@@ -33,7 +34,10 @@ defmodule RsmpClient do
       pid: pid,
       interval: interval,
       timer: nil,
-      status: %{1 => 0},
+      statuses: %{
+        "main/system/temperature" => 21,
+        "main/system/program" => 0
+      },
       plan: 1
     }
 
@@ -129,13 +133,23 @@ defmodule RsmpClient do
   end
 
   # api
+  # from iex:
+  # > Process.whereis(RSMP) |> RSMP.set_status("main","system",1,234)
+
   def get_id(pid) do
     GenServer.call(pid, :get_id)
   end
-  # from iex:
-  # > Process.whereis(RSMP) |> RSMP.set_status("main","system",1,234)
-  def set_status(pid, component, module, code, value) do
-    GenServer.cast(pid, {:set_status, component, module, code, value})
+
+  def get_statuses(pid) do
+    GenServer.call(pid, :get_statuses)
+  end
+
+  def get_status(pid, path) do
+    GenServer.call(pid, {:get_status, path})
+  end
+
+  def set_status(pid, path, value) do
+    GenServer.cast(pid, {:set_status, path, value})
   end
 
   def send_all_status(pid) do
@@ -146,23 +160,28 @@ defmodule RsmpClient do
   def handle_call(:get_id, _from, state) do
     {:reply, state[:id], state}
   end
-  
-  def handle_cast({:set_status, component, module, code, value}, _from, state) do
-    path = "#{component}/#{module}/#{code}"
-    state = %{state | status: Map.put(state.status, path, value)}
-    publish_status(state, component, module, code)
-    {:reply, state}
+
+  def handle_call(:get_statuses, _from, state) do
+    {:reply, state[:statuses], state}
   end
 
-  def handle_cast({:send_all_status}, _from, state) do
+  def handle_call({:get_status, path}, _from, state) do
+    {:reply, state[:statuses][path], state}
+  end
+
+  def handle_cast({:set_status, path, value}, state) do
+    state = %{state | statuses: Map.put(state.statuses, path, value)}
+    publish_status(state, path)
+    {:noreply, state}
+  end
+
+  def handle_cast({:send_all_status}, state) do
     publish_all_status(state)
-    {:reply, state}
+    {:noreply, state}
   end
 
   # internal
-  defp publish_status(state, component, module, code) do
-    path = "#{component}/#{module}/#{code}"
-
+  defp publish_status(state, path) do
     :emqtt.publish(
       # Client
       state.pid,
@@ -171,7 +190,7 @@ defmodule RsmpClient do
       # Properties
       %{},
       # Payload
-      :erlang.term_to_binary(state.status[path]),
+      :erlang.term_to_binary(state.statuses[path]),
       # Opts
       retain: true,
       qos: 1

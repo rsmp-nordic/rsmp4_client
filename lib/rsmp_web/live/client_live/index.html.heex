@@ -1,3 +1,16 @@
 <h1>Client <%= @id %></h1>
-<div id="client" phx-update="append">
+<div id="client" phx-update="append"></div>
+
+<div id="statuses">
+  <h2>Statuses</h2>
+  <p>
+    main/system/temperature: <%= @statuses["main/system/temperature"] %>
+    <button phx-click="increase" value="main/system/temperature">+</button>
+    <button phx-click="decrease" value="main/system/temperature">-</button>
+  </p>
+  <p>
+    main/system/program: <%= @statuses["main/system/program"] %>
+    <button phx-click="increase" value="main/system/program">+</button>
+    <button phx-click="decrease" value="main/system/program">-</button>
+  </p>
 </div>
