@@ -77,7 +77,7 @@ defmodule RsmpClient do
          %{payload: payload, properties: properties},
          state
        ) do
-    new_state = %{state | plan: String.to_integer(payload)}
+    new_state = %{state | plan: :erlang.binary_to_term(payload)}
 
     pid = state[:pid]
     response_topic = properties[:"Response-Topic"]
@@ -88,8 +88,7 @@ defmodule RsmpClient do
     )
 
     if response_topic && command_id do
-      response_message = :ok
-      response_payload = :erlang.term_to_binary(response_message)
+      response = :ok
 
       properties = %{
         "Correlation-Data": command_id
@@ -104,10 +103,10 @@ defmodule RsmpClient do
           # Properties
           properties,
           # Payload
-          response_payload,
+          :erlang.term_to_binary(response),
           # Opts
           retain: false,
-          qos: 1
+          qos: 2
         )
     end
 
