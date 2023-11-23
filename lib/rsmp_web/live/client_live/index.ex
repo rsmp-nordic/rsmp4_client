@@ -20,6 +20,7 @@ defmodule RsmpWeb.ClientLive.Index do
   end
 
   def connected_mount(_params, _session, socket) do
+    Phoenix.PubSub.subscribe(Rsmp.PubSub, "rsmp")
     {:ok, pid} = RsmpClient.start_link([])
 
     {:ok,
@@ -59,4 +60,12 @@ defmodule RsmpWeb.ClientLive.Index do
     Logger.info("handle_event: #{inspect([name, data])}")
     {:noreply, socket}
   end
+
+  @impl true
+  def handle_info(%{topic: "status", changes: _changes}, socket) do
+    pid = socket.assigns[:rsmp_client_id]
+    statuses = RsmpClient.get_statuses(pid)
+    {:noreply, assign(socket, statuses: statuses)}
+  end
+
 end

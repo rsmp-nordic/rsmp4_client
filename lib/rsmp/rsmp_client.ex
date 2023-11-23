@@ -7,7 +7,7 @@ defmodule RsmpClient do
 
   def start_link([]) do
     {:ok, pid} = GenServer.start_link(__MODULE__, [])
-    Logger.info("Starting RSMP client with pid #{inspect(pid)}")
+    Logger.info("RSMP: Starting client with pid #{inspect(pid)}")
 
     {:ok, pid}
   end
@@ -26,7 +26,7 @@ defmodule RsmpClient do
         will_retain: true
       })
 
-    IO.puts("staring emqtt")
+    Logger.info("RSMP: starting emqtt")
     {:ok, pid} = :emqtt.start_link(options)
 
     state = %{
@@ -36,9 +36,8 @@ defmodule RsmpClient do
       timer: nil,
       statuses: %{
         "main/system/temperature" => 21,
-        "main/system/program" => 0
-      },
-      plan: 1
+        "main/system/plan" => 1
+      }
     }
 
     {:ok, set_timer(state), {:continue, :start_emqtt}}
@@ -77,18 +76,28 @@ defmodule RsmpClient do
          %{payload: payload, properties: properties},
          state
        ) do
-    new_state = %{state | plan: :erlang.binary_to_term(payload)}
+
+    path = "main/system/plan"
+    plan = :erlang.binary_to_term(payload)
+    state = %{state | statuses: Map.put(state.statuses, path, plan)}
 
     pid = state[:pid]
     response_topic = properties[:"Response-Topic"]
     command_id = properties[:"Correlation-Data"]
 
-    Logger.info(
-      "Received '#{command}' command #{command_id}: Switching to plan: #{new_state[:plan]}"
-    )
 
     if response_topic && command_id do
-      response = :ok
+      response = if plan >= 0 && plan < 10 do
+        Logger.info(
+          "RSMP: Received '#{command}' command #{command_id}: Switching to plan: #{plan}"
+        )
+        {:ok, plan, ""}
+      else
+        Logger.info(
+          "RSMP: Received '#{command}' command #{command_id}: Cannot switch to plan: #{plan}"
+    )
+        {:not_found, plan, "Plan #{plan} not found"}
+      end
 
       properties = %{
         "Correlation-Data": command_id
@@ -110,8 +119,14 @@ defmodule RsmpClient do
         )
     end
 
+    publish_status(state, path)
+    
+
+    data = %{topic: "status", changes: %{path => plan}}
+    Phoenix.PubSub.broadcast(Rsmp.PubSub, "rsmp", data)
+
     # {:noreply, set_timer(new_state)}
-    {:noreply, new_state}
+    {:noreply, state}
   end
 
   defp handle_publish(_, _, state) do
