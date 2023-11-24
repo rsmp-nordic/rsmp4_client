@@ -13,7 +13,6 @@ defmodule RsmpClient do
   end
 
   def init([]) do
-    interval = Application.get_env(:rsmp, :interval)
     emqtt_opts = Application.get_env(:rsmp, :emqtt) |> Enum.into(%{})
     id = "tlc_#{SecureRandom.hex(4)}"
 
@@ -32,15 +31,13 @@ defmodule RsmpClient do
     state = %{
       id: id,
       pid: pid,
-      interval: interval,
-      timer: nil,
       statuses: %{
         "main/system/temperature" => 21,
         "main/system/plan" => 1
       }
     }
 
-    {:ok, set_timer(state), {:continue, :start_emqtt}}
+    {:ok, state, {:continue, :start_emqtt}}
   end
 
   def handle_continue(:start_emqtt, %{pid: pid, id: clientid} = state) do
@@ -61,8 +58,6 @@ defmodule RsmpClient do
   end
 
   def handle_info(:tick, state) do
-    # status_temperature(pid, topic)
-    # {:noreply, set_timer(state)}
     {:noreply, state}
   end
 
@@ -72,33 +67,54 @@ defmodule RsmpClient do
   end
 
   defp handle_publish(
-         ["command", _, "plan" = command],
+         ["command", _, "plan"],
          %{payload: payload, properties: properties},
          state
        ) do
 
-    path = "main/system/plan"
-    plan = :erlang.binary_to_term(payload)
-    state = %{state | statuses: Map.put(state.statuses, path, plan)}
+    options = %{
+      path: "main/system/plan",
+      plan: :erlang.binary_to_term(payload),
+      response_topic: properties[:"Response-Topic"],
+      command_id: properties[:"Correlation-Data"]
+    }
+    {:noreply, set_plan(state,options)}
+  end
 
-    pid = state[:pid]
-    response_topic = properties[:"Response-Topic"]
-    command_id = properties[:"Correlation-Data"]
+  def set_plan(state,%{
+      path: path,
+      plan: plan,
+      response_topic: response_topic,
+      command_id: command_id
+    }) do
+    
+    current_plan = state[:statuses][path]
 
+    {response,state} = cond do
+      plan == current_plan ->
+        Logger.info("RSMP: Already using plan: #{plan}")
+        {
+          {:ok, plan, "Already using plan #{plan}"},
+          state
+        }
 
-    if response_topic && command_id do
-      response = if plan >= 0 && plan < 10 do
-        Logger.info(
-          "RSMP: Received '#{command}' command #{command_id}: Switching to plan: #{plan}"
-        )
-        {:ok, plan, ""}
-      else
-        Logger.info(
-          "RSMP: Received '#{command}' command #{command_id}: Cannot switch to plan: #{plan}"
-    )
-        {:not_found, plan, "Plan #{plan} not found"}
-      end
+      plan >= 0 && plan < 10 ->
+        Logger.info("RSMP: Switching to plan: #{plan}")
+        state = %{state | statuses: Map.put(state.statuses, path, plan)}
+        {
+          {:ok, plan, ""},
+          state
+        }
 
+      true ->
+        Logger.info("RSMP: Unknown plan: #{plan}")
+        {
+          {:unknown, plan, "Plan #{plan} not found"},
+          state
+        }
+    end
+
+    if plan != current_plan do
       properties = %{
         "Correlation-Data": command_id
       }
@@ -106,7 +122,7 @@ defmodule RsmpClient do
       {:ok, _pkt_id} =
         :emqtt.publish(
           # Client
-          pid,
+          state[:pid],
           # Topic
           response_topic,
           # Properties
@@ -117,16 +133,14 @@ defmodule RsmpClient do
           retain: false,
           qos: 2
         )
+
+      publish_status(state, path)
+
+      data = %{topic: "status", changes: %{path => plan}}
+      Phoenix.PubSub.broadcast(Rsmp.PubSub, "rsmp", data)
     end
 
-    publish_status(state, path)
-    
-
-    data = %{topic: "status", changes: %{path => plan}}
-    Phoenix.PubSub.broadcast(Rsmp.PubSub, "rsmp", data)
-
-    # {:noreply, set_timer(new_state)}
-    {:noreply, state}
+    state
   end
 
   defp handle_publish(_, _, state) do
@@ -135,15 +149,6 @@ defmodule RsmpClient do
 
   defp parse_topic(%{topic: topic}) do
     String.split(topic, "/", trim: true)
-  end
-
-  defp set_timer(state) do
-    if state.timer do
-      Process.cancel_timer(state.timer)
-    end
-
-    timer = Process.send_after(self(), :tick, state.interval)
-    %{state | timer: timer}
   end
 
   # api
