@@ -49,7 +49,8 @@ defmodule Rsmp.MixProject do
       {:secure_random, "~> 0.5"},
       {:emqtt, github: "emqx/emqtt", system_env: [{"BUILD_WITHOUT_QUIC", "1"}]},
       # We will need this for SVG charts
-      {:contex, github: "mindok/contex"}
+      {:contex, github: "mindok/contex"},
+      {:json, "~> 1.4"}
     ]
   end
 

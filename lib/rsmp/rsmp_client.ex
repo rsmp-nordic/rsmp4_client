@@ -1,159 +1,22 @@
-defmodule RsmpClient do
+defmodule Rsmp.Client do
   @moduledoc false
 
-  use GenServer
+  # You can use this module from iex:
+  # > Process.whereis(RSMP) |> RSMP.set_status("main","system",1,234)
 
+  use GenServer
   require Logger
 
-  def start_link([]) do
-    {:ok, pid} = GenServer.start_link(__MODULE__, [])
-    Logger.info("RSMP: Starting client with pid #{inspect(pid)}")
-
-    {:ok, pid}
-  end
-
-  def init([]) do
-    emqtt_opts = Application.get_env(:rsmp, :emqtt) |> Enum.into(%{})
-    id = "tlc_#{SecureRandom.hex(4)}"
-
-    options =
-      Map.merge(emqtt_opts, %{
-        name: String.to_atom(id),
-        clientid: id,
-        will_topic: "state/#{id}",
-        will_payload: :erlang.term_to_binary(0),
-        will_retain: true
-      })
-
-    Logger.info("RSMP: starting emqtt")
-    {:ok, pid} = :emqtt.start_link(options)
-
-    state = %{
-      id: id,
-      pid: pid,
-      statuses: %{
-        "main/system/temperature" => 21,
-        "main/system/plan" => 1
-      }
-    }
-
-    {:ok, state, {:continue, :start_emqtt}}
-  end
-
-  def handle_continue(:start_emqtt, %{pid: pid, id: clientid} = state) do
-    {:ok, _} = :emqtt.connect(pid)
-
-    # subscribe to commands
-    {:ok, _, _} = :emqtt.subscribe(pid, {"command/#{clientid}/plan", 1})
-
-    # say hello
-    :emqtt.publish(
-      pid,
-      "state/#{clientid}",
-      :erlang.term_to_binary(1),
-      retain: true
+  defstruct(
+      id: nil,
+      pid: nil,
+      statuses: %{},
+      alarms: %{}
     )
 
-    {:noreply, state}
-  end
-
-  def handle_info(:tick, state) do
-    {:noreply, state}
-  end
-
-  def handle_info({:publish, publish}, state) do
-    # IO.inspect(publish)
-    handle_publish(parse_topic(publish), publish, state)
-  end
-
-  defp handle_publish(
-         ["command", _, "plan"],
-         %{payload: payload, properties: properties},
-         state
-       ) do
-
-    options = %{
-      path: "main/system/plan",
-      plan: :erlang.binary_to_term(payload),
-      response_topic: properties[:"Response-Topic"],
-      command_id: properties[:"Correlation-Data"]
-    }
-    {:noreply, set_plan(state,options)}
-  end
-
-  def set_plan(state,%{
-      path: path,
-      plan: plan,
-      response_topic: response_topic,
-      command_id: command_id
-    }) do
-    
-    current_plan = state[:statuses][path]
-
-    {response,state} = cond do
-      plan == current_plan ->
-        Logger.info("RSMP: Already using plan: #{plan}")
-        {
-          {:ok, plan, "Already using plan #{plan}"},
-          state
-        }
-
-      plan >= 0 && plan < 10 ->
-        Logger.info("RSMP: Switching to plan: #{plan}")
-        state = %{state | statuses: Map.put(state.statuses, path, plan)}
-        {
-          {:ok, plan, ""},
-          state
-        }
-
-      true ->
-        Logger.info("RSMP: Unknown plan: #{plan}")
-        {
-          {:unknown, plan, "Plan #{plan} not found"},
-          state
-        }
-    end
-
-    if plan != current_plan do
-      properties = %{
-        "Correlation-Data": command_id
-      }
-
-      {:ok, _pkt_id} =
-        :emqtt.publish(
-          # Client
-          state[:pid],
-          # Topic
-          response_topic,
-          # Properties
-          properties,
-          # Payload
-          :erlang.term_to_binary(response),
-          # Opts
-          retain: false,
-          qos: 2
-        )
-
-      publish_status(state, path)
-
-      data = %{topic: "status", changes: %{path => plan}}
-      Phoenix.PubSub.broadcast(Rsmp.PubSub, "rsmp", data)
-    end
-
-    state
-  end
-
-  defp handle_publish(_, _, state) do
-    {:noreply, state}
-  end
-
-  defp parse_topic(%{topic: topic}) do
-    String.split(topic, "/", trim: true)
-  end
+  def new(options \\ %{}), do: __struct__(options)
 
   # api
-  # from iex:
-  # > Process.whereis(RSMP) |> RSMP.set_status("main","system",1,234)
 
   def get_id(pid) do
     GenServer.call(pid, :get_id)
@@ -171,64 +34,257 @@ defmodule RsmpClient do
     GenServer.cast(pid, {:set_status, path, value})
   end
 
-  def send_all_status(pid) do
-    GenServer.cast(pid, {:send_all_status})
+  def set_alarm(pid, path, value) do
+    GenServer.cast(pid, {:set_alarm, path, value})
   end
 
-  # server
-  def handle_call(:get_id, _from, state) do
-    {:reply, state[:id], state}
+  def raise_alarm(pid, path) do
+    GenServer.cast(pid, {:raise_alarm, path})
   end
 
-  def handle_call(:get_statuses, _from, state) do
-    {:reply, state[:statuses], state}
+  def clear_alarm(pid, path) do
+    GenServer.cast(pid, {:clear_alarm, path})
   end
 
-  def handle_call({:get_status, path}, _from, state) do
-    {:reply, state[:statuses][path], state}
+
+
+  # genserver
+  def start_link([]) do
+    {:ok, pid} = GenServer.start_link(__MODULE__, [])
+    Logger.info("RSMP: Starting client with pid #{inspect(pid)}")
+    {:ok, pid}
   end
 
-  def handle_cast({:set_status, path, value}, state) do
-    state = %{state | statuses: Map.put(state.statuses, path, value)}
-    publish_status(state, path)
-    {:noreply, state}
+  def init([]) do
+    emqtt_opts = Application.get_env(:rsmp, :emqtt) |> Enum.into(%{})
+    id = "tlc_#{SecureRandom.hex(4)}"
+
+    options =
+      Map.merge(emqtt_opts, %{
+        name: String.to_atom(id),
+        clientid: id,
+        will_topic: "state/#{id}",
+        will_payload: to_payload(0),
+        will_retain: true
+      })
+
+    Logger.info("RSMP: starting emqtt")
+    {:ok, pid} = :emqtt.start_link(options)
+
+    client = new(
+      id: id,
+      pid: pid,
+      statuses: %{
+        "main/system/temperature" => 21,
+        "main/system/plan" => 1
+      },
+      alarms: %{
+        "main/system/temperature" => [:inactive]
+      }
+    )
+
+    {:ok, client, {:continue, :start_emqtt}}
   end
 
-  def handle_cast({:send_all_status}, state) do
-    publish_all_status(state)
-    {:noreply, state}
+  def handle_continue(:start_emqtt, %{pid: pid, id: id}=client) do
+    {:ok, _} = :emqtt.connect(pid)
+
+    # subscribe to commands
+    {:ok, _, _} = :emqtt.subscribe(pid, {"command/#{id}/plan", 1})
+
+    publish_state(client,1)
+
+    {:noreply, client}
   end
 
-  # internal
-  defp publish_status(state, path) do
+  # genserver api imlementation
+  def handle_call(:get_id, _from, client) do
+    {:reply, client.id, client}
+  end
+
+  def handle_call(:get_statuses, _from, client) do
+    {:reply, client.statuses, client}
+  end
+
+  def handle_call({:get_status, path}, _from, client) do
+    {:reply, client.statuses[path], client}
+  end
+
+  def handle_cast({:set_status, path, value}, client) do
+    client = %{client | statuses: Map.put(client.statuses, path, value)}
+    publish_status(client, path)
+    {:noreply, client}
+  end
+
+  def handle_cast({:set_alarm, path, value}, client) do
+    client = %{client | alarms: Map.put(client.alarms, path, value)}
+    publish_alarm(client, path)
+    {:noreply, client}
+  end
+
+  def handle_cast({:raise_alarm, path}, client) do
+    client = %{client | alarms: Map.put(client.alarms, path, [:active])}
+    publish_alarm(client, path)
+    {:noreply, client}
+  end
+
+  def handle_cast({:clear_alarm, path}, client) do
+    client = %{client | alarms: Map.put(client.alarms, path, [])}
+    publish_alarm(client, path)
+    {:noreply, client}
+  end
+
+  # mqtt
+  def handle_info({:publish, publish}, client) do
+    handle_publish(parse_topic(publish), publish, client)
+  end
+
+  defp handle_publish(
+         ["command", _, "plan"],
+         %{payload: payload, properties: properties},
+         client
+       ) do
+
+    options = %{
+      path: "main/system/plan",
+      plan: from_payload(payload),
+      response_topic: properties[:"Response-Topic"],
+      command_id: properties[:"Correlation-Data"]
+    }
+    {:noreply, set_plan(client,options)}
+  end
+
+  defp handle_publish(_, _, client) do
+    {:noreply, client}
+  end
+
+  defp parse_topic(%{topic: topic}) do
+    String.split(topic, "/", trim: true)
+  end
+
+  # helpers
+  defp publish_status(client, path) do
     :emqtt.publish(
       # Client
-      state.pid,
+      client.pid,
       # Topic
-      "status/#{state.id}/#{path}",
+      "status/#{client.id}/#{path}",
       # Properties
       %{},
       # Payload
-      :erlang.term_to_binary(state.statuses[path]),
+      to_payload(client.statuses[path]),
       # Opts
       retain: true,
       qos: 1
     )
   end
 
-  defp publish_all_status(state) do
+  defp publish_alarm(client, path) do
+    Logger.info "publish alarm"
     :emqtt.publish(
       # Client
-      state.pid,
+      client.pid,
       # Topic
-      "status/#{state.id}/all",
+      "alarm/#{client.id}/#{path}",
       # Properties
       %{},
       # Payload
-      :erlang.term_to_binary(state.status),
+      to_payload(client.alarms[path]),
       # Opts
       retain: true,
       qos: 1
     )
+  end
+
+  defp set_plan(client,%{
+      path: path,
+      plan: plan,
+      response_topic: response_topic,
+      command_id: command_id
+    }) do
+    
+    current_plan = client.statuses[path]
+
+    {response,client} = cond do
+      plan == current_plan ->
+        Logger.info("RSMP: Already using plan: #{plan}")
+        {
+          %{status: "ok", plan: plan, reason: "Already using plan #{plan}"},
+          client
+        }
+
+      plan >= 0 && plan < 10 ->
+        Logger.info("RSMP: Switching to plan: #{plan}")
+        client = %{client | statuses: Map.put(client.statuses, path, plan)}
+        {
+          %{status: "ok", plan: plan, reason: ""},
+          client
+        }
+
+      true ->
+        Logger.info("RSMP: Unknown plan: #{plan}")
+        {
+          %{status: "unknown", plan: plan, reason: "Plan #{plan} not found"},
+          client
+        }
+    end
+
+    if plan != current_plan do
+
+      if response_topic do
+        properties = %{
+          "Correlation-Data": command_id
+        }
+
+        {:ok, _pkt_id} =
+          :emqtt.publish(
+            # Client
+            client.pid,
+            # Topic
+            response_topic,
+            # Properties
+            properties,
+            # Payload
+            to_payload(response),
+            # Opts
+            retain: false,
+            qos: 2
+          )
+      end
+
+      publish_status(client, path)
+
+      data = %{topic: "status", changes: %{path => plan}}
+      Phoenix.PubSub.broadcast(Rsmp.PubSub, "rsmp", data)
+    end
+
+    client
+  end
+
+  defp publish_state(client,state) do
+    :emqtt.publish(
+      client.pid,
+      "state/#{client.id}",
+      to_payload(state),
+      retain: true
+    )
+  end
+
+  def to_payload(data) do
+    {:ok, json} = JSON.encode(data)
+    #Logger.info "Encoded #{data} to JSON: #{inspect(json)}"
+    json
+  end
+
+  def from_payload(json) do
+    try do
+      {:ok, data} = JSON.decode(json)
+      #Logger.info "Decoded JSON #{json} to #{data}"
+      data
+    rescue
+      _e ->
+      #Logger.warning "Could not decode JSON: #{inspect(json)}"
+      nil
+    end
   end
 end
