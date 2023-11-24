@@ -34,8 +34,8 @@ defmodule Rsmp.Client do
     GenServer.cast(pid, {:set_status, path, value})
   end
 
-  def set_alarm(pid, path, value) do
-    GenServer.cast(pid, {:set_alarm, path, value})
+  def get_alarms(pid) do
+    GenServer.call(pid, :get_alarms)
   end
 
   def raise_alarm(pid, path) do
@@ -79,7 +79,7 @@ defmodule Rsmp.Client do
         "main/system/plan" => 1
       },
       alarms: %{
-        "main/system/temperature" => [:inactive]
+        "main/system/temperature" => %{}
       }
     )
 
@@ -110,26 +110,27 @@ defmodule Rsmp.Client do
     {:reply, client.statuses[path], client}
   end
 
+  def handle_call(:get_alarms, _from, client) do
+    {:reply, client.alarms, client}
+  end
+
+
   def handle_cast({:set_status, path, value}, client) do
     client = %{client | statuses: Map.put(client.statuses, path, value)}
     publish_status(client, path)
     {:noreply, client}
   end
 
-  def handle_cast({:set_alarm, path, value}, client) do
-    client = %{client | alarms: Map.put(client.alarms, path, value)}
-    publish_alarm(client, path)
-    {:noreply, client}
-  end
-
   def handle_cast({:raise_alarm, path}, client) do
-    client = %{client | alarms: Map.put(client.alarms, path, [:active])}
+    alarm = %{ client.alarms[path] | active: true}
+    client = %{client | alarms: Map.put(client.alarms, path, alarm)}
     publish_alarm(client, path)
     {:noreply, client}
   end
 
   def handle_cast({:clear_alarm, path}, client) do
-    client = %{client | alarms: Map.put(client.alarms, path, [])}
+    alarm = %{}
+    client = %{client | alarms: Map.put(client.alarms, path, alarm)}
     publish_alarm(client, path)
     {:noreply, client}
   end

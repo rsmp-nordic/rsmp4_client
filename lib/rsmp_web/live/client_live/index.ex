@@ -14,7 +14,8 @@ defmodule RsmpWeb.ClientLive.Index do
          assign(socket,
            page: "loading",
            id: "",
-           statuses: %{}
+           statuses: %{},
+           alarms: %{}
          )}
     end
   end
@@ -27,7 +28,8 @@ defmodule RsmpWeb.ClientLive.Index do
      assign(socket,
        rsmp_client_id: pid,
        id: Rsmp.Client.get_id(pid),
-       statuses: Rsmp.Client.get_statuses(pid)
+       statuses: Rsmp.Client.get_statuses(pid),
+       alarms: Rsmp.Client.get_alarms(pid)
      )}
   end
 

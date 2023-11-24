@@ -23,14 +23,17 @@ h2 {
   content: " 🟢";
 }
 
-#statuses {
+#statuses, #alarms {
 	margin-top: 2em;
 }
 
-#statuses p {
+#statuses p, #alarms p{
 	margin: 1em 0em;
 }
 
+#alarms button.inactive {
+	background-color: #888;
+}
 
 button {
 	background-color: #608;

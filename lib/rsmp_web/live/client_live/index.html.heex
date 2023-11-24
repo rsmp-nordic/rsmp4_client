@@ -3,14 +3,24 @@
 
 <div id="statuses">
   <h2>Statuses</h2>
-  <p>
-    main/system/temperature: <%= @statuses["main/system/temperature"] %>
-    <button phx-click="increase" value="main/system/temperature">+</button>
-    <button phx-click="decrease" value="main/system/temperature">-</button>
-  </p>
-  <p>
-    main/system/plan: <%= @statuses["main/system/plan"] %>
-    <button phx-click="increase" value="main/system/plan">+</button>
-    <button phx-click="decrease" value="main/system/plan">-</button>
-  </p>
+  <%= for {status,value} <- @statuses do %>
+    <p>
+      <%= status %>: <%= value %>
+      <button phx-click="increase" value={status}>+</button>
+      <button phx-click="decrease" value={status}>-</button>
+    </p>
+  <% end %>
+</div>
+
+
+<div id="alarms">
+  <h2>Alarms</h2>
+  <%= for {alarm,value} <- @alarms do %>
+    <p>
+      <%= alarm %>
+    <button phx-click="active" value="active" class="inactive">Active</button>
+    <button phx-click="acknowledged" value="acknowledged">Acknowledged</button>
+    </p>
+  <% end %>
+
 </div>
