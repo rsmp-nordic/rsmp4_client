@@ -46,6 +46,10 @@ defmodule Rsmp.Client do
     GenServer.cast(pid, {:clear_alarm, path})
   end
 
+  def toggle_alarm_flag(pid, path, flag) do
+    GenServer.cast(pid, {:toggle_alarm_flag, path, flag})
+  end
+
 
 
   # genserver
@@ -79,7 +83,11 @@ defmodule Rsmp.Client do
         "main/system/plan" => 1
       },
       alarms: %{
-        "main/system/temperature" => %{}
+        "main/system/temperature" => %{
+          "active" => true,
+          "acknowledged" => false,
+          "blocked" => false
+        }
       }
     )
 
@@ -135,6 +143,18 @@ defmodule Rsmp.Client do
     {:noreply, client}
   end
 
+  def handle_cast({:toggle_alarm_flag, path, flag}, client) do
+    alarm = client.alarms[path]
+    alarm = alarm |> Map.put(flag, alarm[flag] == false)
+    client = %{client | alarms: Map.put(client.alarms, path, alarm)}
+    publish_alarm(client, path)
+
+      data = %{topic: "alarm", changes: %{path => path}}
+      Phoenix.PubSub.broadcast(Rsmp.PubSub, "rsmp", data)
+
+    {:noreply, client}
+  end
+
   # mqtt
   def handle_info({:publish, publish}, client) do
     handle_publish(parse_topic(publish), publish, client)
@@ -181,7 +201,6 @@ defmodule Rsmp.Client do
   end
 
   defp publish_alarm(client, path) do
-    Logger.info "publish alarm"
     :emqtt.publish(
       # Client
       client.pid,

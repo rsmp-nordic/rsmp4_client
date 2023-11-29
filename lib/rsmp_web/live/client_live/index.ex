@@ -15,7 +15,8 @@ defmodule RsmpWeb.ClientLive.Index do
            page: "loading",
            id: "",
            statuses: %{},
-           alarms: %{}
+           alarms: %{},
+           alarm_flags: Enum.sort(["active", "acknowledged", "blocked"])
          )}
     end
   end
@@ -29,7 +30,8 @@ defmodule RsmpWeb.ClientLive.Index do
        rsmp_client_id: pid,
        id: Rsmp.Client.get_id(pid),
        statuses: Rsmp.Client.get_statuses(pid),
-       alarms: Rsmp.Client.get_alarms(pid)
+       alarms: Rsmp.Client.get_alarms(pid),
+       alarm_flags: Enum.sort(["active", "acknowledged", "blocked"])
      )}
   end
 
@@ -66,8 +68,15 @@ defmodule RsmpWeb.ClientLive.Index do
     change_status(data, socket, -1)
   end
 
-  def handle_event(name, data, socket) do
-    Logger.info("handle_event: #{inspect([name, data])}")
+  @impl true
+  def handle_event("alarm", %{"path" => path, "value" => flag}=_data, socket) do
+    pid = socket.assigns[:rsmp_client_id]
+    Rsmp.Client.toggle_alarm_flag(pid,path,flag)
+    {:noreply, socket}
+  end
+
+  @impl true
+  def handle_event(_name, _data, socket) do
     {:noreply, socket}
   end
 
@@ -77,5 +86,13 @@ defmodule RsmpWeb.ClientLive.Index do
     statuses = Rsmp.Client.get_statuses(pid)
     {:noreply, assign(socket, statuses: statuses)}
   end
+
+  @impl true
+  def handle_info(%{topic: "alarm", changes: _changes}, socket) do
+    pid = socket.assigns[:rsmp_client_id]
+    alarms = Rsmp.Client.get_alarms(pid)
+    {:noreply, assign(socket, alarms: alarms)}
+  end
+
 
 end

@@ -15,11 +15,14 @@
 
 <div id="alarms">
   <h2>Alarms</h2>
-  <%= for {alarm,value} <- @alarms do %>
+  <%= for {path,alarm} <- @alarms do %>
     <p>
-      <%= alarm %>
-    <button phx-click="active" value="active" class="inactive">Active</button>
-    <button phx-click="acknowledged" value="acknowledged">Acknowledged</button>
+      <%= path %>
+      <%= for flag <- @alarm_flags do %>
+        <button phx-click="alarm" phx-value-path={path} value={flag} class={to_string(alarm[flag])}>
+          <%= to_string(flag) %>
+        </button>
+      <% end %>
     </p>
   <% end %>
 

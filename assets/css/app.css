@@ -31,7 +31,11 @@ h2 {
 	margin: 1em 0em;
 }
 
-#alarms button.inactive {
+#alarms button.true {
+	background-color: #608;
+}
+
+#alarms button.false {
 	background-color: #888;
 }
 
