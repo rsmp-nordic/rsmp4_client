@@ -30,12 +30,17 @@ defmodule Rsmp.Client do
     GenServer.call(pid, {:get_status, path})
   end
 
-  def set_status(pid, path, value) do
-    GenServer.cast(pid, {:set_status, path, value})
-  end
-
   def get_alarms(pid) do
     GenServer.call(pid, :get_alarms)
+  end
+
+  def get_alarm_flag(pid, path, flag) do
+    GenServer.call(pid, {:get_alarm_flag, path, flag})
+  end
+
+
+  def set_status(pid, path, value) do
+    GenServer.cast(pid, {:set_status, path, value})
   end
 
   def raise_alarm(pid, path) do
@@ -44,6 +49,10 @@ defmodule Rsmp.Client do
 
   def clear_alarm(pid, path) do
     GenServer.cast(pid, {:clear_alarm, path})
+  end
+
+  def set_alarm_flag(pid, path, flag, value) do
+    GenServer.cast(pid, {:set_alarm_flag, path, flag, value})
   end
 
   def toggle_alarm_flag(pid, path, flag) do
@@ -100,6 +109,9 @@ defmodule Rsmp.Client do
     # subscribe to commands
     {:ok, _, _} = :emqtt.subscribe(pid, {"command/#{id}/plan", 1})
 
+    # subscribe to alarm flag requests
+    {:ok, _, _} = :emqtt.subscribe(pid, {"flag/#", 1})
+
     publish_state(client,1)
 
     {:noreply, client}
@@ -120,6 +132,12 @@ defmodule Rsmp.Client do
 
   def handle_call(:get_alarms, _from, client) do
     {:reply, client.alarms, client}
+  end
+
+  def handle_call({:get_alarm_flag, path, flag}, _from, client) do
+    alarm = client.alarms[path] || %{}
+    flag = alarm[flag] || false
+    {:reply, flag, client}
   end
 
 
@@ -143,6 +161,18 @@ defmodule Rsmp.Client do
     {:noreply, client}
   end
 
+  def handle_cast({:set_alarm_flag, path, flag, value}, client) do
+    alarm = client.alarms[path]
+    alarm = alarm |> Map.put(flag, value == true)
+    client = %{client | alarms: Map.put(client.alarms, path, alarm)}
+    publish_alarm(client, path)
+
+      data = %{topic: "alarm", changes: %{path => path}}
+      Phoenix.PubSub.broadcast(Rsmp.PubSub, "rsmp", data)
+
+    {:noreply, client}
+  end
+
   def handle_cast({:toggle_alarm_flag, path, flag}, client) do
     alarm = client.alarms[path]
     alarm = alarm |> Map.put(flag, alarm[flag] == false)
@@ -160,6 +190,13 @@ defmodule Rsmp.Client do
     handle_publish(parse_topic(publish), publish, client)
   end
 
+  def handle_info({:disconnected, code, _publish}, client) do
+    Logger.warning "RSMP: Disconnected, code: #{code}"
+    #handle_disconnect(parse_topic(publish), publish, client)
+    {:noreply, client}
+  end
+
+
   defp handle_publish(
          ["command", _, "plan"],
          %{payload: payload, properties: properties},
@@ -175,7 +212,28 @@ defmodule Rsmp.Client do
     {:noreply, set_plan(client,options)}
   end
 
-  defp handle_publish(_, _, client) do
+  defp handle_publish(
+         ["flag", _, component, module, code],
+         %{payload: payload, properties: _properties},
+         client
+       ) do
+
+    [flag,value] = from_payload(payload)
+    path = "#{component}/#{module}/#{code}"
+
+    Logger.info("RSMP: Received alarm flag #{path}, #{flag} is #{value}")
+
+    client = put_in(client.alarms[path][flag], value)
+
+    data = %{topic: "alarm", changes: %{path => client.alarms[path]}}
+    Phoenix.PubSub.broadcast(Rsmp.PubSub, "rsmp", data)
+
+    {:noreply,client}
+  end
+
+
+  defp handle_publish(topic, _, client) do
+    Logger.warning "Unhandled publish: #{inspect(topic)}"
     {:noreply, client}
   end
 
@@ -201,6 +259,7 @@ defmodule Rsmp.Client do
   end
 
   defp publish_alarm(client, path) do
+    Logger.info("RSMP: Sending alarm: #{path}")
     :emqtt.publish(
       # Client
       client.pid,
