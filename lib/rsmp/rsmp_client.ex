@@ -88,17 +88,13 @@ defmodule Rsmp.Client do
       id: id,
       pid: pid,
       statuses: %{
-        "main/system/temperature" => 21,
-        "main/system/plan" => 1
-      },
-      alarms: %{
-        "main/system/temperature" => %{
-          "active" => true,
-          "acknowledged" => false,
-          "blocked" => false
-        }
+        "main/system/plan" => 1,
+        "main/system/temperature" => 28,
+        "main/system/humidity" => 48,
       }
     )
+    |> reset_alarm("main/system/temperature")
+    |> reset_alarm("main/system/humidity")
 
     {:ok, client, {:continue, :start_emqtt}}
   end
@@ -110,10 +106,10 @@ defmodule Rsmp.Client do
     {:ok, _, _} = :emqtt.subscribe(pid, {"command/#{id}/plan", 1})
 
     # subscribe to alarm flag requests
-    {:ok, _, _} = :emqtt.subscribe(pid, {"flag/#", 1})
+    {:ok, _, _} = :emqtt.subscribe(pid, {"flag/#{id}/#", 1})
 
     publish_state(client,1)
-
+    publish_all(client)
     {:noreply, client}
   end
 
@@ -148,29 +144,42 @@ defmodule Rsmp.Client do
   end
 
   def handle_cast({:raise_alarm, path}, client) do
-    alarm = %{ client.alarms[path] | active: true}
-    client = %{client | alarms: Map.put(client.alarms, path, alarm)}
-    publish_alarm(client, path)
-    {:noreply, client}
-  end
-
-  def handle_cast({:clear_alarm, path}, client) do
-    alarm = %{}
-    client = %{client | alarms: Map.put(client.alarms, path, alarm)}
-    publish_alarm(client, path)
-    {:noreply, client}
-  end
-
-  def handle_cast({:set_alarm_flag, path, flag, value}, client) do
-    alarm = client.alarms[path]
-    alarm = alarm |> Map.put(flag, value == true)
-    client = %{client | alarms: Map.put(client.alarms, path, alarm)}
-    publish_alarm(client, path)
+    if client.alarms[path]["active"] == false do
+      client = put_in(client.alarms[path]["active"], true)
+      publish_alarm(client, path)
 
       data = %{topic: "alarm", changes: %{path => path}}
       Phoenix.PubSub.broadcast(Rsmp.PubSub, "rsmp", data)
+      {:noreply, client}
+    else
+      {:noreply, client}
+    end
+  end
 
-    {:noreply, client}
+  def handle_cast({:clear_alarm, path}, client) do
+    if client.alarms[path]["active"] == true do
+      client = put_in(client.alarms[path]["active"], false)
+      publish_alarm(client, path)
+
+      data = %{topic: "alarm", changes: %{path => path}}
+      Phoenix.PubSub.broadcast(Rsmp.PubSub, "rsmp", data)
+      {:noreply, client}
+    else
+      {:noreply, client}
+    end
+  end
+
+  def handle_cast({:set_alarm_flag, path, flag, value}, client) do
+    if client.alarms[path][flag] != value do
+      client = put_in(client.alarms[path][flag], value)
+      publish_alarm(client, path)
+
+      data = %{topic: "alarm", changes: %{path => path}}
+      Phoenix.PubSub.broadcast(Rsmp.PubSub, "rsmp", data)
+      {:noreply, client}
+    else
+      {:noreply, client}
+    end
   end
 
   def handle_cast({:toggle_alarm_flag, path, flag}, client) do
@@ -258,8 +267,16 @@ defmodule Rsmp.Client do
     )
   end
 
+  defp alarm_flag_string(client,path) do
+    client.alarms[path]
+    |> Enum.filter( fn {_flag,value} -> value == true end)
+    |> Enum.map( fn {flag,_value} -> flag end)
+    |> inspect()
+  end
+
   defp publish_alarm(client, path) do
-    Logger.info("RSMP: Sending alarm: #{path}")
+    flags = alarm_flag_string(client,path)
+    Logger.info("RSMP: Sending alarm: #{path} #{flags}")
     :emqtt.publish(
       # Client
       client.pid,
@@ -273,6 +290,19 @@ defmodule Rsmp.Client do
       retain: true,
       qos: 1
     )
+  end
+
+  defp reset_alarm(client,path) do
+    put_in(client.alarms[path],%{
+      "active" => false,
+      "acknowledged" => false,
+      "blocked" => false
+    })
+  end
+
+  defp publish_all(client) do
+    for path <- Map.keys(client.alarms), do: publish_alarm(client, path)
+    for path <- Map.keys(client.statuses), do: publish_status(client, path)    
   end
 
   defp set_plan(client,%{

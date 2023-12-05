@@ -51,8 +51,19 @@ defmodule RsmpWeb.ClientLive.Index do
     if path == "main/system/temperature" do
       if new_value >= 30 do
         Rsmp.Client.raise_alarm(pid, path)
+      else
+        Rsmp.Client.clear_alarm(pid, path)
       end
     end
+
+    if path == "main/system/humidity" do
+      if new_value >= 50 do
+        Rsmp.Client.raise_alarm(pid, path)
+      else
+        Rsmp.Client.clear_alarm(pid, path)
+      end
+    end
+
     
     statuses = Rsmp.Client.get_statuses(pid)
     {:noreply, assign(socket, statuses: statuses)}
