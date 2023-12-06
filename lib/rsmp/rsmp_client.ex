@@ -14,9 +14,14 @@ defmodule Rsmp.Client do
       alarms: %{}
     )
 
-  def new(options \\ %{}), do: __struct__(options)
+  def new(options), do: __struct__(options)
 
   # api
+  def start_link(_options \\ []) do
+    {:ok, pid} = GenServer.start_link(__MODULE__, [])
+    Logger.info("RSMP: Start client with pid #{inspect(pid)}")
+    {:ok, pid}
+  end
 
   def get_id(pid) do
     GenServer.call(pid, :get_id)
@@ -60,14 +65,7 @@ defmodule Rsmp.Client do
   end
 
 
-
   # genserver
-  def start_link([]) do
-    {:ok, pid} = GenServer.start_link(__MODULE__, [])
-    Logger.info("RSMP: Starting client with pid #{inspect(pid)}")
-    {:ok, pid}
-  end
-
   def init([]) do
     emqtt_opts = Application.get_env(:rsmp, :emqtt) |> Enum.into(%{})
     id = "tlc_#{SecureRandom.hex(4)}"
@@ -227,12 +225,13 @@ defmodule Rsmp.Client do
          client
        ) do
 
-    [flag,value] = from_payload(payload)
+    flags = from_payload(payload)
     path = "#{component}/#{module}/#{code}"
 
-    Logger.info("RSMP: Received alarm flag #{path}, #{flag} is #{value}")
+    Logger.info("RSMP: Received alarm flag #{path}, #{inspect(flags)}")
 
-    client = put_in(client.alarms[path][flag], value)
+    alarm = client.alarms[path] |> Map.merge(flags)
+    client = put_in(client.alarms[path], alarm)
 
     data = %{topic: "alarm", changes: %{path => client.alarms[path]}}
     Phoenix.PubSub.broadcast(Rsmp.PubSub, "rsmp", data)
