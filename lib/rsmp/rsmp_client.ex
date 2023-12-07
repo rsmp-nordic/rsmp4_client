@@ -165,6 +165,7 @@ defmodule Rsmp.Client do
     else
       {:noreply, client}
     end
+    
   end
 
   def handle_cast({:set_alarm_flag, path, flag, value}, client) do
@@ -232,6 +233,8 @@ defmodule Rsmp.Client do
 
     alarm = client.alarms[path] |> Map.merge(flags)
     client = put_in(client.alarms[path], alarm)
+
+    publish_alarm(client, path)
 
     data = %{topic: "alarm", changes: %{path => client.alarms[path]}}
     Phoenix.PubSub.broadcast(Rsmp.PubSub, "rsmp", data)
