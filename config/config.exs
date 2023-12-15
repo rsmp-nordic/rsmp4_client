@@ -66,14 +66,9 @@ config :rsmp, :emqtt,
   clean_start: false,
   name: :emqtt,
   proto_ver: :v5,
-  force_ping: true
+  force_ping: true,
+  reconnect: true
 
 config :rsmp, :interval, 1000
-config :logger, level: :info
-
 config :rsmp, :sensor_id, "tlc_582a"
-
-# Period for chart
-config :rsmp, :timespan, 60
-
-config :logger, level: :info
+config :logger, level: :debug
