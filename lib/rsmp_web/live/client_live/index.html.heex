@@ -1,29 +1,61 @@
-<h1>Client <%= @id %></h1>
+<h1 class="text-2xl font-bold py-4">Client <%= @id %></h1>
 <div id="client" phx-update="append"></div>
 
-<div id="statuses">
-  <h2>Statuses</h2>
-  <%= for {status,value} <- @statuses do %>
-    <p>
-      <%= status %>: <%= value %>
-      <button phx-click="increase" value={status}>+</button>
-      <button phx-click="decrease" value={status}>-</button>
-    </p>
+<div id="statuses" class="overflow-x-auto rounded-md my-4">
+  <table class="w-full text-left">
+    <caption class="px-1 py-1 bg-stone-500 text-white text-xl font-semibold text-left">
+        Statuses
+    </caption>
+
+    <thead>
+      <tr class="text-base bg-stone-200">
+        <th class="px-1 py-1">Path</th>
+        <th class="px-1 py-1">Value</th>
+        <th class="px-1 py-1"></th>
+      </tr>
+    </thead>
+    <%= for {status,value} <- @statuses do %>
+    <tr class="text-base even:bg-stone-200 odd:bg-stone-100">
+      <td class="px-1 py-1"><%= status %></td>
+      <td class="px-1 py-1"><%= value %></td>
+      <td class="px-1 py-1">
+        <%= for {event,label} <- [{"increase","+"},{"decrease","-"}] do %>
+        <button class="bg-purple-900 text-white rounded-lg px-2" phx-click={event} value={status}><%= label %></button>
+        <% end %>
+      </td>
+    </tr>
   <% end %>
+  </table>
 </div>
 
 
-<div id="alarms">
-  <h2>Alarms</h2>
-  <%= for {path,alarm} <- @alarms do %>
-    <p>
-      <%= path %>
-      <%= for flag <- @alarm_flags do %>
-        <button phx-click="alarm" phx-value-path={path} value={flag} class={to_string(alarm[flag])}>
-          <%= to_string(flag) %>
-        </button>
-      <% end %>
-    </p>
-  <% end %>
+<div id="alarms" class="overflow-x-auto rounded-md my-4">
+  <table class="w-full text-left">
+    <caption class="px-1 py-1 bg-stone-500 text-white text-xl font-semibold text-left">
+        Alarms
+    </caption>
 
+    <thead>
+      <tr class="text-base bg-stone-200">
+        <th class="px-1 py-1">Path</th>
+        <%= for flag <- @alarm_flags do %>
+          <th class="px-1 py-1"><%= to_string(flag) %></th>
+        <% end %>
+      </tr>
+    </thead>
+
+    <%= for {path,alarm} <- @alarms do %>
+    <tr class="text-base even:bg-stone-200 odd:bg-stone-100">
+      <td class="px-1 py-1"><%= path %></td>
+      <%= for flag <- @alarm_flags do %>
+        <td class="px-1 py-1">
+          <button class={"text-white rounded-lg px-2 " <> if alarm[flag], do: "bg-purple-900", else: "bg-stone-600"} phx-click="alarm" phx-value-path={path} value={flag}>
+            <%= if alarm[flag], do: 'Yes', else: 'No' %>
+          </button>
+        </td>
+      <% end %>
+    </tr>
+    <% end %>
+
+  </table>
 </div>
