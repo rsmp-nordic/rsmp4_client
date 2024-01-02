@@ -1,26 +1,26 @@
 <h1 class="text-2xl font-bold py-4">Client <%= @id %></h1>
 <div id="client" phx-update="append"></div>
 
-<div id="statuses" class="overflow-x-auto rounded-md my-4">
-  <table class="w-full text-left">
-    <caption class="px-1 py-1 bg-stone-500 text-white text-xl font-semibold text-left">
-        Statuses
+<div class="overflow-x-auto rounded-md my-4">
+  <table id="statuses" class="w-full text-left">
+    <caption class="px-1 py-1 bg-purple-900 text-white text-xl font-semibold text-left">
+      Statuses
     </caption>
 
     <thead>
-      <tr class="text-base bg-stone-200">
+      <tr class="text-base bg-stone-100">
         <th class="px-1 py-1">Path</th>
         <th class="px-1 py-1">Value</th>
         <th class="px-1 py-1"></th>
       </tr>
     </thead>
     <%= for {status,value} <- @statuses do %>
-    <tr class="text-base even:bg-stone-200 odd:bg-stone-100">
+    <tr class="text-base odd:bg-stone-200 even:bg-stone-100">
       <td class="px-1 py-1"><%= status %></td>
       <td class="px-1 py-1"><%= value %></td>
       <td class="px-1 py-1">
         <%= for {event,label} <- [{"increase","+"},{"decrease","-"}] do %>
-        <button class="bg-purple-900 text-white rounded-lg px-2" phx-click={event} value={status}><%= label %></button>
+        <button class="bg-stone-600 text-white rounded-lg px-2" phx-click={event} value={status}><%= label %></button>
         <% end %>
       </td>
     </tr>
@@ -29,14 +29,14 @@
 </div>
 
 
-<div id="alarms" class="overflow-x-auto rounded-md my-4">
-  <table class="w-full text-left">
-    <caption class="px-1 py-1 bg-stone-500 text-white text-xl font-semibold text-left">
-        Alarms
+<div class="overflow-x-auto rounded-md my-4">
+  <table id="alarms" class="w-full text-left">
+    <caption class="px-1 py-1 bg-purple-900 text-white text-xl font-semibold text-left">
+      Alarms
     </caption>
 
     <thead>
-      <tr class="text-base bg-stone-200">
+      <tr class="text-base bg-stone-100">
         <th class="px-1 py-1">Path</th>
         <%= for flag <- @alarm_flags do %>
           <th class="px-1 py-1"><%= to_string(flag) %></th>
@@ -45,7 +45,7 @@
     </thead>
 
     <%= for {path,alarm} <- @alarms do %>
-    <tr class="text-base even:bg-stone-200 odd:bg-stone-100">
+    <tr class="text-base odd:bg-stone-200 even:bg-stone-100">
       <td class="px-1 py-1"><%= path %></td>
       <%= for flag <- @alarm_flags do %>
         <td class="px-1 py-1">
