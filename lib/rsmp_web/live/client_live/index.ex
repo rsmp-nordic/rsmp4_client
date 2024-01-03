@@ -6,11 +6,11 @@ defmodule RsmpWeb.ClientLive.Index do
   @impl true
   def mount(params, session, socket) do
     case connected?(socket) do
-      true ->
-        connected_mount(params, session, socket)
-
       false ->
         initial_mount(params, session, socket)
+
+      true ->
+        connected_mount(params, session, socket)
     end
   end
 

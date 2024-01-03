@@ -15,7 +15,7 @@ Now you can visit [`localhost:3000`](http://localhost:3000) from your browser.
 
 
 ## CLI
-From iex (Interactive Elixir) you can usethe RSMP.Client module to interact with RSMP MQTT clients. If you have a supervisor, you should see the client appear online, send status messages, etc:
+From iex (Interactive Elixir) you can use the RSMP.Client module to interact with RSMP MQTT clients. If you have a supervisor, you should see the client appear online, send status messages, etc:
 
 ```sh
 %> iex -S mix
@@ -24,7 +24,6 @@ Erlang/OTP 25 [erts-13.2.2.3] [source] [64-bit] [smp:8:8] [ds:8:8:10] [async-thr
 Interactive Elixir (1.15.5) - press Ctrl+C to exit (type h() ENTER for help)
 
 iex(1)> {:ok,pid} = Rsmp.Client.start_link()   # start our client, will send state, statuses and alarms
-[info] RSMP: starting emqtt
 [info] RSMP: Starting client with pid #PID<0.342.0>
 {:ok, #PID<0.342.0>}
 

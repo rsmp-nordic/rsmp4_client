@@ -1,9 +1,6 @@
 defmodule Rsmp.Client do
   @moduledoc false
 
-  # You can use this module from iex:
-  # > Process.whereis(RSMP) |> RSMP.set_status("main","system",1,234)
-
   use GenServer
   require Logger
 
