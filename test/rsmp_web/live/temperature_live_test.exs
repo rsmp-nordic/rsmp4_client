@@ -1,8 +1,8 @@
-defmodule RsmpWeb.ClientLiveTest do
-  use RsmpWeb.ConnCase
+defmodule RSMPWeb.ClientLiveTest do
+  use RSMPWeb.ConnCase
 
   import Phoenix.LiveViewTest
-  import Rsmp.MeasurementsFixtures
+  import RSMP.MeasurementsFixtures
 
   @create_attrs %{}
   @update_attrs %{}

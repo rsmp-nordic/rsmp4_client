@@ -1,4 +1,4 @@
-defmodule Rsmp.Client do
+defmodule RSMP.Client do
   @moduledoc false
 
   use GenServer
@@ -144,7 +144,7 @@ defmodule Rsmp.Client do
       publish_alarm(client, path)
 
       data = %{topic: "alarm", changes: %{path => path}}
-      Phoenix.PubSub.broadcast(Rsmp.PubSub, "rsmp", data)
+      Phoenix.PubSub.broadcast(RSMP.PubSub, "rsmp", data)
       {:noreply, client}
     else
       {:noreply, client}
@@ -157,7 +157,7 @@ defmodule Rsmp.Client do
       publish_alarm(client, path)
 
       data = %{topic: "alarm", changes: %{path => path}}
-      Phoenix.PubSub.broadcast(Rsmp.PubSub, "rsmp", data)
+      Phoenix.PubSub.broadcast(RSMP.PubSub, "rsmp", data)
       {:noreply, client}
     else
       {:noreply, client}
@@ -171,7 +171,7 @@ defmodule Rsmp.Client do
       publish_alarm(client, path)
 
       data = %{topic: "alarm", changes: %{path => path}}
-      Phoenix.PubSub.broadcast(Rsmp.PubSub, "rsmp", data)
+      Phoenix.PubSub.broadcast(RSMP.PubSub, "rsmp", data)
       {:noreply, client}
     else
       {:noreply, client}
@@ -185,7 +185,7 @@ defmodule Rsmp.Client do
     publish_alarm(client, path)
 
       data = %{topic: "alarm", changes: %{path => path}}
-      Phoenix.PubSub.broadcast(Rsmp.PubSub, "rsmp", data)
+      Phoenix.PubSub.broadcast(RSMP.PubSub, "rsmp", data)
 
     {:noreply, client}
   end
@@ -234,7 +234,7 @@ defmodule Rsmp.Client do
     publish_alarm(client, path)
 
     data = %{topic: "alarm", changes: %{path => client.alarms[path]}}
-    Phoenix.PubSub.broadcast(Rsmp.PubSub, "rsmp", data)
+    Phoenix.PubSub.broadcast(RSMP.PubSub, "rsmp", data)
 
     {:noreply,client}
   end
@@ -363,7 +363,7 @@ defmodule Rsmp.Client do
       publish_status(client, path)
 
       data = %{topic: "status", changes: %{path => plan}}
-      Phoenix.PubSub.broadcast(Rsmp.PubSub, "rsmp", data)
+      Phoenix.PubSub.broadcast(RSMP.PubSub, "rsmp", data)
     end
 
     client

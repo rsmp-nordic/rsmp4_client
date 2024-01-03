@@ -23,21 +23,21 @@ Erlang/OTP 25 [erts-13.2.2.3] [source] [64-bit] [smp:8:8] [ds:8:8:10] [async-thr
 
 Interactive Elixir (1.15.5) - press Ctrl+C to exit (type h() ENTER for help)
 
-iex(1)> {:ok,pid} = Rsmp.Client.start_link()   # start our client, will send state, statuses and alarms
+iex(1)> {:ok,pid} = RSMP.Client.start_link()   # start our client, will send state, statuses and alarms
 [info] RSMP: Starting client with pid #PID<0.342.0>
 {:ok, #PID<0.342.0>}
 
-iex(4)> pid |> Rsmp.Client.get_id()  # show our RSMP/MQTT id
+iex(4)> pid |> RSMP.Client.get_id()  # show our RSMP/MQTT id
 "tlc_b2926093"
 
-iex(5)> pid |> Rsmp.Client.get_statuses()  # show our local statuses
+iex(5)> pid |> RSMP.Client.get_statuses()  # show our local statuses
 %{
   "main/system/humidity" => 48,
   "main/system/plan" => 1,
   "main/system/temperature" => 28
 }
 
-iex(6)> pid |> Rsmp.Client.get_alarms()  # show our local alarms
+iex(6)> pid |> RSMP.Client.get_alarms()  # show our local alarms
 %{
   "main/system/humidity" => %{
     "acknowledged" => false,
@@ -51,12 +51,12 @@ iex(6)> pid |> Rsmp.Client.get_alarms()  # show our local alarms
   }
 }
 
-iex(7)> pid |> Rsmp.Client.set_status("main/system/humidity",49)  # will publish our status, if changed
+iex(7)> pid |> RSMP.Client.set_status("main/system/humidity",49)  # will publish our status, if changed
 :ok
 
-iex(9)> pid |> Rsmp.Client.raise_alarm("main/system/temperature") # will publish alarm, if chahnged
+iex(9)> pid |> RSMP.Client.raise_alarm("main/system/temperature") # will publish alarm, if chahnged
 :ok
 
-iex(11)> pid |> Rsmp.Client.clear_alarm("main/system/temperature") # will publish alarm, if changed
+iex(11)> pid |> RSMP.Client.clear_alarm("main/system/temperature") # will publish alarm, if changed
 :ok
 ```

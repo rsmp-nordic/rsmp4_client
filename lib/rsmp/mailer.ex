@@ -1,3 +1,3 @@
-defmodule Rsmp.Mailer do
+defmodule RSMP.Mailer do
   use Swoosh.Mailer, otp_app: :rsmp
 end

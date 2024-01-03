@@ -1,4 +1,4 @@
-defmodule RsmpWeb.Endpoint do
+defmodule RSMPWeb.Endpoint do
   use Phoenix.Endpoint, otp_app: :rsmp
 
   # The session will be stored in the cookie and signed,
@@ -21,7 +21,7 @@ defmodule RsmpWeb.Endpoint do
     at: "/",
     from: :rsmp,
     gzip: false,
-    only: RsmpWeb.static_paths()
+    only: RSMPWeb.static_paths()
 
   # Code reloading can be explicitly enabled under the
   # :code_reloader configuration of your endpoint.
@@ -42,5 +42,5 @@ defmodule RsmpWeb.Endpoint do
   plug Plug.MethodOverride
   plug Plug.Head
   plug Plug.Session, @session_options
-  plug RsmpWeb.Router
+  plug RSMPWeb.Router
 end

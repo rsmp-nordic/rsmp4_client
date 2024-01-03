@@ -1,5 +1,5 @@
-defmodule RsmpWeb.Layouts do
-  use RsmpWeb, :html
+defmodule RSMPWeb.Layouts do
+  use RSMPWeb, :html
 
   embed_templates "layouts/*"
 end

@@ -8,13 +8,13 @@
 import Config
 
 # Configures the endpoint
-config :rsmp, RsmpWeb.Endpoint,
+config :rsmp, RSMPWeb.Endpoint,
   url: [host: "localhost"],
   render_errors: [
-    formats: [html: RsmpWeb.ErrorHTML, json: RsmpWeb.ErrorJSON],
+    formats: [html: RSMPWeb.ErrorHTML, json: RSMPWeb.ErrorJSON],
     layout: false
   ],
-  pubsub_server: Rsmp.PubSub,
+  pubsub_server: RSMP.PubSub,
   live_view: [signing_salt: "+BqAJ3a2"]
 
 # Configures the mailer
@@ -24,7 +24,7 @@ config :rsmp, RsmpWeb.Endpoint,
 #
 # For production it's recommended to configure a different adapter
 # at the `config/runtime.exs`.
-config :rsmp, Rsmp.Mailer, adapter: Swoosh.Adapters.Local
+config :rsmp, RSMP.Mailer, adapter: Swoosh.Adapters.Local
 
 # Configure esbuild (the version is required)
 config :esbuild,

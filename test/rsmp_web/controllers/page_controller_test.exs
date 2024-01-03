@@ -1,5 +1,5 @@
-defmodule RsmpWeb.PageControllerTest do
-  use RsmpWeb.ConnCase
+defmodule RSMPWeb.PageControllerTest do
+  use RSMPWeb.ConnCase
 
   test "GET /", %{conn: conn} do
     conn = get(conn, ~p"/")

@@ -1,4 +1,4 @@
-defmodule Rsmp.MixProject do
+defmodule RSMP.MixProject do
   use Mix.Project
 
   def project do
@@ -18,7 +18,7 @@ defmodule Rsmp.MixProject do
   # Type `mix help compile.app` for more information.
   def application do
     [
-      mod: {Rsmp.Application, []},
+      mod: {RSMP.Application, []},
       extra_applications: [:logger, :runtime_tools]
     ]
   end

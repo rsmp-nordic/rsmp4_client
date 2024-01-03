@@ -1,5 +1,5 @@
-defmodule RsmpWeb.PageController do
-  use RsmpWeb, :controller
+defmodule RSMPWeb.PageController do
+  use RSMPWeb, :controller
 
   def home(conn, _params) do
     # The home page is often custom made,

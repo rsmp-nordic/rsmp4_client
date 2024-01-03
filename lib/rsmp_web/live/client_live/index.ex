@@ -1,5 +1,5 @@
-defmodule RsmpWeb.ClientLive.Index do
-  use RsmpWeb, :live_view
+defmodule RSMPWeb.ClientLive.Index do
+  use RSMPWeb, :live_view
 
   require Logger
 
@@ -26,15 +26,15 @@ defmodule RsmpWeb.ClientLive.Index do
   end
 
   def connected_mount(_params, _session, socket) do
-    Phoenix.PubSub.subscribe(Rsmp.PubSub, "rsmp")
-    {:ok, pid} = Rsmp.Client.start_link([])
+    Phoenix.PubSub.subscribe(RSMP.PubSub, "rsmp")
+    {:ok, pid} = RSMP.Client.start_link([])
 
     {:ok,
      assign(socket,
        rsmp_client_id: pid,
-       id: Rsmp.Client.get_id(pid),
-       statuses: Rsmp.Client.get_statuses(pid),
-       alarms: Rsmp.Client.get_alarms(pid),
+       id: RSMP.Client.get_id(pid),
+       statuses: RSMP.Client.get_statuses(pid),
+       alarms: RSMP.Client.get_alarms(pid),
        alarm_flags: Enum.sort(["active", "acknowledged", "blocked"])
      )}
   end
@@ -47,29 +47,29 @@ defmodule RsmpWeb.ClientLive.Index do
   def change_status(data, socket, delta) do
     path = data["value"]
     pid = socket.assigns[:rsmp_client_id]
-    statuses = Rsmp.Client.get_statuses(pid)
+    statuses = RSMP.Client.get_statuses(pid)
     new_value = statuses[path] + delta
-    Rsmp.Client.set_status(pid, path, new_value)
+    RSMP.Client.set_status(pid, path, new_value)
 
 
     if path == "main/system/temperature" do
       if new_value >= 30 do
-        Rsmp.Client.raise_alarm(pid, path)
+        RSMP.Client.raise_alarm(pid, path)
       else
-        Rsmp.Client.clear_alarm(pid, path)
+        RSMP.Client.clear_alarm(pid, path)
       end
     end
 
     if path == "main/system/humidity" do
       if new_value >= 50 do
-        Rsmp.Client.raise_alarm(pid, path)
+        RSMP.Client.raise_alarm(pid, path)
       else
-        Rsmp.Client.clear_alarm(pid, path)
+        RSMP.Client.clear_alarm(pid, path)
       end
     end
 
     
-    statuses = Rsmp.Client.get_statuses(pid)
+    statuses = RSMP.Client.get_statuses(pid)
     {:noreply, assign(socket, statuses: statuses)}
   end
 
@@ -86,7 +86,7 @@ defmodule RsmpWeb.ClientLive.Index do
   @impl true
   def handle_event("alarm", %{"path" => path, "value" => flag}=_data, socket) do
     pid = socket.assigns[:rsmp_client_id]
-    Rsmp.Client.toggle_alarm_flag(pid,path,flag)
+    RSMP.Client.toggle_alarm_flag(pid,path,flag)
     {:noreply, socket}
   end
 
@@ -98,14 +98,14 @@ defmodule RsmpWeb.ClientLive.Index do
   @impl true
   def handle_info(%{topic: "status", changes: _changes}, socket) do
     pid = socket.assigns[:rsmp_client_id]
-    statuses = Rsmp.Client.get_statuses(pid)
+    statuses = RSMP.Client.get_statuses(pid)
     {:noreply, assign(socket, statuses: statuses)}
   end
 
   @impl true
   def handle_info(%{topic: "alarm", changes: _changes}, socket) do
     pid = socket.assigns[:rsmp_client_id]
-    alarms = Rsmp.Client.get_alarms(pid)
+    alarms = RSMP.Client.get_alarms(pid)
     {:noreply, assign(socket, alarms: alarms)}
   end
 
