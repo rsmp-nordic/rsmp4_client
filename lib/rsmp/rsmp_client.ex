@@ -320,7 +320,7 @@ defmodule Rsmp.Client do
       plan == current_plan ->
         Logger.info("RSMP: Already using plan: #{plan}")
         {
-          %{status: "ok", plan: plan, reason: "Already using plan #{plan}"},
+          %{status: "already", plan: plan, reason: "Already using plan #{plan}"},
           client
         }
 
@@ -340,29 +340,29 @@ defmodule Rsmp.Client do
         }
     end
 
-    if plan != current_plan do
 
-      if response_topic do
-        properties = %{
-          "Correlation-Data": command_id
-        }
+    if response_topic do
+      properties = %{
+        "Correlation-Data": command_id
+      }
 
-        {:ok, _pkt_id} =
-          :emqtt.publish(
-            # Client
-            client.pid,
-            # Topic
-            response_topic,
-            # Properties
-            properties,
-            # Payload
-            to_payload(response),
-            # Opts
-            retain: false,
-            qos: 2
-          )
-      end
+      {:ok, _pkt_id} =
+        :emqtt.publish(
+          # Client
+          client.pid,
+          # Topic
+          response_topic,
+          # Properties
+          properties,
+          # Payload
+          to_payload(response),
+          # Opts
+          retain: false,
+          qos: 2
+        )
+    end
 
+    if response[:status] == "ok"do
       publish_status(client, path)
 
       data = %{topic: "status", changes: %{path => plan}}

@@ -10,15 +10,19 @@ defmodule RsmpWeb.ClientLive.Index do
         connected_mount(params, session, socket)
 
       false ->
-        {:ok,
-         assign(socket,
-           page: "loading",
-           id: "",
-           statuses: %{},
-           alarms: %{},
-           alarm_flags: Enum.sort(["active", "acknowledged", "blocked"])
-         )}
+        initial_mount(params, session, socket)
     end
+  end
+
+  def initial_mount(_params, _session, socket) do
+    {:ok,
+     assign(socket,
+       page: "loading",
+       id: "",
+       statuses: %{},
+       alarms: %{},
+       alarm_flags: Enum.sort(["active", "acknowledged", "blocked"])
+     )}
   end
 
   def connected_mount(_params, _session, socket) do
